@@ -1,0 +1,33 @@
+containers:
+  python3.6:
+    setup:
+    - !Ubuntu xenial
+    # Install python3.6
+    - !AptTrust
+      keys: [4AB0F789CBA31744CC7DA76A8CF63AD3F06FC659]
+    - !UbuntuPPA jonathonf/python-3.6
+    - !Install [python3.6, python3.6-dev]
+    - !PipConfig
+      dependencies: true
+      install-python: false
+      python-exe: /usr/bin/python3.6
+    - !Py3Requirements requirements.txt
+    auto-clean: true
+  python3.5:
+    setup:
+    - !Ubuntu xenial
+    - !PipConfig
+      dependencies: true
+    - !Py3Requirements requirements.txt
+    auto-clean: true
+
+commands:
+  bench: !Command
+    container: python3.6
+    description: Run benchmars
+    run: [python3.6, benchmark.py]
+
+  bench_py35: !Command
+    container: python3.5
+    description: Run benchmars with python3.5
+    run: [python3, benchmark.py]

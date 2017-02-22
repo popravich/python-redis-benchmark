@@ -1,0 +1,15 @@
+setuptools
+hiredis
+uvloop
+
+# aioredis
+aioredis==0.3
+
+# aredis
+aredis==1.0.3
+
+# asyncio_redis
+asyncio_redis==0.14.3
+
+# redis-py
+redis==2.10.5
