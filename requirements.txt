@@ -1,9 +1,13 @@
 setuptools
 hiredis
 uvloop
+pytest
+git+https://github.com/popravich/pytest-benchmark@feature_ops#pytest-benchmark
+# -e pytest-benchmark
 
 # aioredis
-aioredis==0.3
+aioredis==1.0.0b1
+# -e git+https://github.com/aio-libs/aioredis#egg=aioredis
 
 # aredis
 aredis==1.0.3

@@ -6,14 +6,16 @@ def feed_and_gets(reader, data):
     assert reader.gets() is not False
 
 
-def data(s):
-    return b'$%d\r\n%s\r\n' % (s, b'A' * s)
+def data(s, d=b'A'):
+    return b'$%d\r\n%s\r\n' % (len(d) * s, d * s)
 
 
 BULK_STR_1K = data(2**10)
 BULK_STR_4K = data(2**12)
 BULK_STR_16K = data(2**14)
 BULK_STR_32K = data(2**15)
+
+FRACTIONED = data(128, b'\r\ndata\r\n')
 
 MULTI_BULK = (
     b'*6\r\n'
@@ -37,6 +39,12 @@ def benchmark_parser_simple_string(benchmark, reader):
 @pytest.mark.benchmark(group='simple-error')
 def benchmark_parser_simple_error(benchmark, reader):
     benchmark(feed_and_gets, reader, b'-Error\r\n')
+
+
+@pytest.mark.bulk_string_1k
+@pytest.mark.benchmark(group='bulk-string-fractioned')
+def benchmark_parser_bulk_string_fractioned(benchmark, reader):
+    benchmark(feed_and_gets, reader, FRACTIONED)
 
 
 @pytest.mark.bulk_string_1k

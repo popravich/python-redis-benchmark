@@ -14,6 +14,7 @@ from aioredis.parser import PyReader
 from redis.connection import HiredisParser, PythonParser
 from aredis import connection as aredis_conn
 from aioredis import parser as aioredis_parser
+from asyncio_redis.protocol import RedisProtocol, HiRedisProtocol
 
 
 @pytest.fixture(scope='session', params=[HiredisParser, PythonParser])
@@ -58,15 +59,23 @@ class HiredisParserReader(PythonParserReader):
 
 
 @pytest.fixture(params=[
-    HiReader(), HiReader(encoding='utf-8'),
-    PyReader(), PyReader(encoding='utf-8'),
-    PythonParserReader(), PythonParserReader(encoding='utf-8'),
-    HiredisParserReader(), HiredisParserReader(encoding='utf-8'),
+    HiReader(),
+    HiReader(encoding='utf-8'),
+    pytest.mark.pyreader(PyReader()),
+    pytest.mark.pyreader(PyReader(encoding='utf-8')),
+    pytest.mark.pyreader(PythonParserReader()),
+    pytest.mark.pyreader(PythonParserReader(encoding='utf-8')),
+    HiredisParserReader(),
+    HiredisParserReader(encoding='utf-8'),
 ], ids=[
-    'hiredis', 'hiredis(utf-8)',
-    'aioredis-python', 'aioredis-python(utf-8)',
-    'redispy-python', 'redispy-python(utf-8)',
-    'redispy-hiredis', 'redispy-hiredis(utf-8)',
+    'hiredis',
+    'hiredis(utf-8)',
+    'aioredis-python',
+    'aioredis-python(utf-8)',
+    'redispy-python',
+    'redispy-python(utf-8)',
+    'redispy-hiredis',
+    'redispy-hiredis(utf-8)',
 ])
 def reader(request):
     return request.param
@@ -111,7 +120,17 @@ async def aioredis_stop(client):
 
 
 async def asyncio_redis_start():
-    pool = await asyncio_redis.Pool.create('localhost', 6379, poolsize=2)
+    pool = await asyncio_redis.Pool.create(
+        'localhost', 6379, poolsize=2,
+        protocol_class=HiRedisProtocol)
+    await pool.ping()
+    return pool
+
+
+async def asyncio_redis_py_start():
+    pool = await asyncio_redis.Pool.create(
+        'localhost', 6379, poolsize=2,
+        protocol_class=RedisProtocol)
     await pool.ping()
     return pool
 
@@ -122,16 +141,18 @@ async def asyncio_redis_stop(pool):
 
 @pytest.fixture(params=[
     (aredis_start, None),
-    (aredis_py_start, None),
+    pytest.mark.pyreader((aredis_py_start, None)),
     (aioredis_start, aioredis_stop),
-    (aioredis_py_start, aioredis_stop),
+    pytest.mark.pyreader((aioredis_py_start, aioredis_stop)),
     (asyncio_redis_start, asyncio_redis_stop),
+    pytest.mark.pyreader((asyncio_redis_py_start, asyncio_redis_stop)),
 ], ids=[
     'aredis[hi]',
     'aredis[py]',
     'aioredis[hi]',
     'aioredis[py]',
-    'asyncio_redis',
+    'asyncio_redis[hi]',
+    'asyncio_redis[py]',
 ])
 def async_redis(loop, request):
     start, stop = request.param
