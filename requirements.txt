@@ -1,19 +1,18 @@
 setuptools
 hiredis
-uvloop
+uvloop;implementation_name=="cpython"
 pytest
-git+https://github.com/popravich/pytest-benchmark@feature_ops#pytest-benchmark
-# -e pytest-benchmark
+pytest-benchmark>=3.1.1
 
 # aioredis
-aioredis==1.0.0b1
+aioredis==1.0.0b2
 # -e git+https://github.com/aio-libs/aioredis#egg=aioredis
 
 # aredis
-aredis==1.0.3
+aredis==1.1.1
 
 # asyncio_redis
 asyncio_redis==0.14.3
 
 # redis-py
-redis==2.10.5
+redis==2.10.6

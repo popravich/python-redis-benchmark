@@ -2,7 +2,7 @@ containers:
 
   python3.6:
     setup:
-    - !Alpine v3.6
+    - !Ubuntu artful
     - !Install [ca-certificates, git]
     - !PipConfig { dependencies: true }
     - !Py3Requirements requirements.txt

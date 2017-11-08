@@ -2,7 +2,12 @@ import pytest
 import redis
 import io
 import asyncio
-import uvloop
+try:
+    import uvloop
+except ImportError:
+    has_uvloop = False
+else:
+    has_uvloop = True
 
 import aredis
 import aioredis
@@ -11,13 +16,16 @@ import asyncio_redis
 from unittest import mock
 from hiredis import Reader as HiReader
 from aioredis.parser import PyReader
-from redis.connection import HiredisParser, PythonParser
+from redis.connection import HiredisParser, PythonParser, Encoder
 from aredis import connection as aredis_conn
 from aioredis import parser as aioredis_parser
 from asyncio_redis.protocol import RedisProtocol, HiRedisProtocol
 
 
-@pytest.fixture(scope='session', params=[HiredisParser, PythonParser])
+@pytest.fixture(scope='session', params=[
+    pytest.param(HiredisParser, marks=pytest.mark.hiredis),
+    pytest.param(PythonParser, marks=pytest.mark.pyreader),
+])
 def redispy(request):
     pool = redis.ConnectionPool(parser_class=request.param)
     r = redis.StrictRedis(connection_pool=pool)
@@ -40,10 +48,10 @@ class PythonParserReader:
     def __init__(self, encoding=None):
         self._sock = FakeSocket()
         self._parser = self.Parser(2**17)
+        enc = Encoder(encoding, 'strict', encoding is not None)
         self._parser.on_connect(
             mock.Mock(_sock=self._sock,
-                      decode_responses=encoding is not None,
-                      encoding=encoding))
+                      encoder=enc))
 
     def feed(self, data):
         if not self._sock.tell():
@@ -59,14 +67,16 @@ class HiredisParserReader(PythonParserReader):
 
 
 @pytest.fixture(params=[
-    HiReader(),
-    HiReader(encoding='utf-8'),
-    pytest.mark.pyreader(PyReader()),
-    pytest.mark.pyreader(PyReader(encoding='utf-8')),
-    pytest.mark.pyreader(PythonParserReader()),
-    pytest.mark.pyreader(PythonParserReader(encoding='utf-8')),
-    HiredisParserReader(),
-    HiredisParserReader(encoding='utf-8'),
+    pytest.param(HiReader(), marks=pytest.mark.hiredis),
+    pytest.param(HiReader(encoding='utf-8'), marks=pytest.mark.hiredis),
+    pytest.param(PyReader(), marks=pytest.mark.pyreader),
+    pytest.param(PyReader(encoding='utf-8'), marks=pytest.mark.pyreader),
+    pytest.param(PythonParserReader(), marks=pytest.mark.pyreader),
+    pytest.param(PythonParserReader(encoding='utf-8'),
+                 marks=pytest.mark.pyreader),
+    pytest.param(HiredisParserReader(), marks=pytest.mark.hiredis),
+    pytest.param(HiredisParserReader(encoding='utf-8'),
+                 marks=pytest.mark.hiredis),
 ], ids=[
     'hiredis',
     'hiredis(utf-8)',
@@ -140,12 +150,18 @@ async def asyncio_redis_stop(pool):
 
 
 @pytest.fixture(params=[
-    (aredis_start, None),
-    pytest.mark.pyreader((aredis_py_start, None)),
-    (aioredis_start, aioredis_stop),
-    pytest.mark.pyreader((aioredis_py_start, aioredis_stop)),
-    (asyncio_redis_start, asyncio_redis_stop),
-    pytest.mark.pyreader((asyncio_redis_py_start, asyncio_redis_stop)),
+    pytest.param((aredis_start, None),
+                 marks=pytest.mark.hiredis),
+    pytest.param((aredis_py_start, None),
+                 marks=pytest.mark.pyreader),
+    pytest.param((aioredis_start, aioredis_stop),
+                 marks=pytest.mark.hiredis),
+    pytest.param((aioredis_py_start, aioredis_stop),
+                 marks=pytest.mark.pyreader),
+    pytest.param((asyncio_redis_start, asyncio_redis_stop),
+                 marks=pytest.mark.hiredis),
+    pytest.param((asyncio_redis_py_start, asyncio_redis_stop),
+                 marks=pytest.mark.pyreader),
 ], ids=[
     'aredis[hi]',
     'aredis[py]',
@@ -162,14 +178,27 @@ def async_redis(loop, request):
         loop.run_until_complete(stop(client))
 
 
-@pytest.fixture(params=[
-    uvloop.new_event_loop,
-    asyncio.new_event_loop,
-], ids=[
-    'uvloop',
-    'asyncio',
-])
+if has_uvloop:
+    kw = dict(params=[
+        pytest.param(uvloop.new_event_loop, marks=pytest.mark.uvloop),
+        pytest.param(asyncio.new_event_loop, marks=pytest.mark.asyncio),
+    ], ids=[
+        'uvloop',
+        'asyncio',
+    ])
+else:
+    kw = dict(params=[
+        # pytest.param(uvloop.new_event_loop, marks=pytest.mark.uvloop),
+        pytest.param(asyncio.new_event_loop, marks=pytest.mark.asyncio),
+    ], ids=[
+        # 'uvloop',
+        'asyncio',
+    ])
+
+
+@pytest.fixture(**kw)
 def loop(request):
+    """Asyncio event loop, either uvloop or asyncio."""
     loop = request.param()
     asyncio.set_event_loop(None)
     yield loop
