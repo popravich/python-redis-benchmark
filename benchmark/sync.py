@@ -28,3 +28,11 @@ def benchmark_lpush(benchmark, redispy, str_size, data_size):
     value = ['S' * str_size] * data_size
     redispy.delete('lpush')
     benchmark(redispy.lpush, 'lpush', value)
+
+
+@pytest.mark.benchmark(group="redispy-zrange")
+def benchmark_zrange(benchmark, redispy):
+    for i in range(10):
+        redispy.zadd(
+            'zset:key', i, 'key:{}'.format(i))
+    benchmark(redispy.zrange, 'zset:key', 0, -1, withscores=True)
