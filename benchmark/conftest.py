@@ -215,3 +215,47 @@ def _aioredis(loop):
     finally:
         r.close()
         loop.run_until_complete(r.wait_closed())
+
+
+@pytest.fixture(scope='session')
+def str_1k():
+    return 'A' * 2**10
+
+
+@pytest.fixture(scope='session')
+def str_4k():
+    return 'A' * 2**12
+
+
+@pytest.fixture(scope='session')
+def str_16k():
+    return 'A' * 2**14
+
+
+@pytest.fixture(scope='session')
+def str_32k():
+    return 'A' * 2**15
+
+
+@pytest.fixture(scope='session')
+def bulk_data_1k(str_1k):
+    d = str_1k.encode('utf-8')
+    return b'$%d\r\n%s\r\n' % (len(d), d)
+
+
+@pytest.fixture(scope='session')
+def bulk_data_4k(str_4k):
+    d = str_4k.encode('utf-8')
+    return b'$%d\r\n%s\r\n' % (len(d), d)
+
+
+@pytest.fixture(scope='session')
+def bulk_data_16k(str_16k):
+    d = str_16k.encode('utf-8')
+    return b'$%d\r\n%s\r\n' % (len(d), d)
+
+
+@pytest.fixture(scope='session')
+def bulk_data_32k(str_32k):
+    d = str_32k.encode('utf-8')
+    return b'$%d\r\n%s\r\n' % (len(d), d)

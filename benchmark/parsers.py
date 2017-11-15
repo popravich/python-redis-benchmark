@@ -6,16 +6,8 @@ def feed_and_gets(reader, data):
     assert reader.gets() is not False
 
 
-def data(s, d=b'A'):
-    return b'$%d\r\n%s\r\n' % (len(d) * s, d * s)
-
-
-BULK_STR_1K = data(2**10)
-BULK_STR_4K = data(2**12)
-BULK_STR_16K = data(2**14)
-BULK_STR_32K = data(2**15)
-
-FRACTIONED = data(128, b'\r\ndata\r\n')
+FRACTIONED = b'$%d\r\n%s\r\n' % (
+    len(b'\r\ndata\r\n') * 128, b'\r\ndata\r\n' * 128)
 
 MULTI_BULK = (
     b'*6\r\n'
@@ -26,7 +18,6 @@ MULTI_BULK = (
     b'$-1\r\n'
     b'*-1\r\n'
 )
-MULTI_BULK_4K = b'*4\r\n' + (BULK_STR_1K * 4)
 
 
 @pytest.mark.simple_string
@@ -49,26 +40,26 @@ def benchmark_parser_bulk_string_fractioned(benchmark, reader):
 
 @pytest.mark.bulk_string_1k
 @pytest.mark.benchmark(group='bulk-string-1K')
-def benchmark_parser_bulk_string_1K(benchmark, reader):
-    benchmark(feed_and_gets, reader, BULK_STR_1K)
+def benchmark_parser_bulk_string_1K(benchmark, reader, bulk_data_1k):
+    benchmark(feed_and_gets, reader, bulk_data_1k)
 
 
 @pytest.mark.bulk_string_4k
 @pytest.mark.benchmark(group='bulk-string-4K')
-def benchmark_parser_bulk_string_4K(benchmark, reader):
-    benchmark(feed_and_gets, reader, BULK_STR_4K)
+def benchmark_parser_bulk_string_4K(benchmark, reader, bulk_data_4k):
+    benchmark(feed_and_gets, reader, bulk_data_4k)
 
 
 @pytest.mark.bulk_string_16k
 @pytest.mark.benchmark(group='bulk-string-16K')
-def benchmark_parser_bulk_string_16K(benchmark, reader):
-    benchmark(feed_and_gets, reader, BULK_STR_16K)
+def benchmark_parser_bulk_string_16K(benchmark, reader, bulk_data_16k):
+    benchmark(feed_and_gets, reader, bulk_data_16k)
 
 
 @pytest.mark.bulk_string_32k
 @pytest.mark.benchmark(group='bulk-string-32K')
-def benchmark_parser_bulk_string_32K(benchmark, reader):
-    benchmark(feed_and_gets, reader, BULK_STR_32K)
+def benchmark_parser_bulk_string_32K(benchmark, reader, bulk_data_32k):
+    benchmark(feed_and_gets, reader, bulk_data_32k)
 
 
 @pytest.mark.multi_bulk
@@ -79,5 +70,6 @@ def benchmark_parser_multi_bulk(benchmark, reader):
 
 @pytest.mark.multi_bulk
 @pytest.mark.benchmark(group='multi-bulk-4K')
-def benchmark_parser_multi_bulk_4k(benchmark, reader):
-    benchmark(feed_and_gets, reader, MULTI_BULK_4K)
+def benchmark_parser_multi_bulk_4k(benchmark, reader, bulk_data_1k):
+    multi_bulk_4k = b'*4\r\n' + bulk_data_1k
+    benchmark(feed_and_gets, reader, multi_bulk_4k)
