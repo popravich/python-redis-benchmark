@@ -23,13 +23,12 @@ from asyncio_redis.protocol import RedisProtocol, HiRedisProtocol
 
 
 @pytest.fixture(scope='session', params=[
-    pytest.param(HiredisParser, marks=pytest.mark.hiredis),
-    pytest.param(PythonParser, marks=pytest.mark.pyreader),
+    pytest.param(HiredisParser, marks=pytest.mark.hiredis, id='redis-py[hi]'),
+    pytest.param(PythonParser, marks=pytest.mark.pyreader, id='redis-py[py]'),
 ])
 def redispy(request):
     pool = redis.ConnectionPool(parser_class=request.param)
     r = redis.StrictRedis(connection_pool=pool)
-    assert r.flushdb() is True
     return r
 
 
@@ -67,25 +66,24 @@ class HiredisParserReader(PythonParserReader):
 
 
 @pytest.fixture(params=[
-    pytest.param(HiReader(), marks=pytest.mark.hiredis),
-    pytest.param(HiReader(encoding='utf-8'), marks=pytest.mark.hiredis),
-    pytest.param(PyReader(), marks=pytest.mark.pyreader),
-    pytest.param(PyReader(encoding='utf-8'), marks=pytest.mark.pyreader),
-    pytest.param(PythonParserReader(), marks=pytest.mark.pyreader),
+    pytest.param(HiReader(), marks=pytest.mark.hiredis,
+                 id='hiredis'),
+    pytest.param(HiReader(encoding='utf-8'), marks=pytest.mark.hiredis,
+                 id='hiredis(utf-8)'),
+    pytest.param(PyReader(), marks=pytest.mark.pyreader,
+                 id='aioredis-python'),
+    pytest.param(PyReader(encoding='utf-8'), marks=pytest.mark.pyreader,
+                 id='aioredis-python(utf-8)'),
+    pytest.param(PythonParserReader(), marks=pytest.mark.pyreader,
+                 id='redispy-python'),
     pytest.param(PythonParserReader(encoding='utf-8'),
-                 marks=pytest.mark.pyreader),
-    pytest.param(HiredisParserReader(), marks=pytest.mark.hiredis),
+                 marks=pytest.mark.pyreader,
+                 id='redispy-python(utf-8)'),
+    pytest.param(HiredisParserReader(), marks=pytest.mark.hiredis,
+                 id='redispy-hiredis'),
     pytest.param(HiredisParserReader(encoding='utf-8'),
-                 marks=pytest.mark.hiredis),
-], ids=[
-    'hiredis',
-    'hiredis(utf-8)',
-    'aioredis-python',
-    'aioredis-python(utf-8)',
-    'redispy-python',
-    'redispy-python(utf-8)',
-    'redispy-hiredis',
-    'redispy-hiredis(utf-8)',
+                 marks=pytest.mark.hiredis,
+                 id='redispy-hiredis(utf-8)'),
 ])
 def reader(request):
     return request.param
@@ -151,24 +149,23 @@ async def asyncio_redis_stop(pool):
 
 @pytest.fixture(params=[
     pytest.param((aredis_start, None),
-                 marks=pytest.mark.hiredis),
+                 marks=pytest.mark.hiredis,
+                 id='aredis[hi]-------'),
     pytest.param((aredis_py_start, None),
-                 marks=pytest.mark.pyreader),
+                 marks=pytest.mark.pyreader,
+                 id='aredis[py]-------'),
     pytest.param((aioredis_start, aioredis_stop),
-                 marks=pytest.mark.hiredis),
+                 marks=pytest.mark.hiredis,
+                 id='aioredis[hi]-----'),
     pytest.param((aioredis_py_start, aioredis_stop),
-                 marks=pytest.mark.pyreader),
+                 marks=pytest.mark.pyreader,
+                 id='aioredis[py]-----'),
     pytest.param((asyncio_redis_start, asyncio_redis_stop),
-                 marks=pytest.mark.hiredis),
+                 marks=pytest.mark.hiredis,
+                 id='asyncio_redis[hi]'),
     pytest.param((asyncio_redis_py_start, asyncio_redis_stop),
-                 marks=pytest.mark.pyreader),
-], ids=[
-    'aredis[hi]',
-    'aredis[py]',
-    'aioredis[hi]',
-    'aioredis[py]',
-    'asyncio_redis[hi]',
-    'asyncio_redis[py]',
+                 marks=pytest.mark.pyreader,
+                 id='asyncio_redis[py]'),
 ])
 def async_redis(loop, request):
     start, stop = request.param
@@ -180,19 +177,15 @@ def async_redis(loop, request):
 
 if has_uvloop:
     kw = dict(params=[
-        pytest.param(uvloop.new_event_loop, marks=pytest.mark.uvloop),
-        pytest.param(asyncio.new_event_loop, marks=pytest.mark.asyncio),
-    ], ids=[
-        'uvloop',
-        'asyncio',
+        pytest.param(uvloop.new_event_loop, marks=pytest.mark.uvloop,
+                     id='uvloop-'),
+        pytest.param(asyncio.new_event_loop, marks=pytest.mark.asyncio,
+                     id='asyncio'),
     ])
 else:
     kw = dict(params=[
-        # pytest.param(uvloop.new_event_loop, marks=pytest.mark.uvloop),
-        pytest.param(asyncio.new_event_loop, marks=pytest.mark.asyncio),
-    ], ids=[
-        # 'uvloop',
-        'asyncio',
+        pytest.param(asyncio.new_event_loop, marks=pytest.mark.asyncio,
+                     id='asyncio'),
     ])
 
 
@@ -217,45 +210,90 @@ def _aioredis(loop):
         loop.run_until_complete(r.wait_closed())
 
 
-@pytest.fixture(scope='session')
-def str_1k():
-    return 'A' * 2**10
+MIN_SIZE = 10
+
+MAX_SIZE = 2**15
 
 
 @pytest.fixture(scope='session')
-def str_4k():
-    return 'A' * 2**12
+def r():
+    return redis.StrictRedis()
+
+
+@pytest.fixture(
+    scope='session',
+    params=[MIN_SIZE, 2**8, 2**10, 2**12, 2**14, MAX_SIZE],
+    ids=lambda n: str(n).rjust(5, '-')
+    )
+def data_size(request):
+    return request.param
+
+
+def data_value(size):
+    return ''.join(chr(i) for i in range(size))
 
 
 @pytest.fixture(scope='session')
-def str_16k():
-    return 'A' * 2**14
+def key_get(data_size, r):
+    key = 'get:size:{:05}'.format(data_size)
+    value = data_value(data_size)
+    assert r.set(key, value) is True
+    return key
 
 
 @pytest.fixture(scope='session')
-def str_32k():
-    return 'A' * 2**15
+def key_hgetall(data_size, r):
+    items = data_size
+    size = MAX_SIZE // items
+    key = 'dict:size:{:05}x{:05}'.format(items, size)
+    val = data_value(size)
+    for i in range(items):
+        r.hset(key, 'f:{:05}'.format(i), val)
+    return key
 
 
 @pytest.fixture(scope='session')
-def bulk_data_1k(str_1k):
-    d = str_1k.encode('utf-8')
-    return b'$%d\r\n%s\r\n' % (len(d), d)
+def key_zrange(data_size, r):
+    key = 'zset:size:{:05}'.format(data_size)
+    for i in range(data_size):
+        val = 'val:{:05}'.format(i)
+        r.zadd(key, i / 2, val)
+    return key
 
 
 @pytest.fixture(scope='session')
-def bulk_data_4k(str_4k):
-    d = str_4k.encode('utf-8')
-    return b'$%d\r\n%s\r\n' % (len(d), d)
+def key_lrange(data_size, r):
+    size = MAX_SIZE // data_size
+    key = 'list:size:{:05}x{:05}'.format(data_size, size)
+    val = data_value(size)
+    for i in range(data_size):
+        r.lpush(key, val)
+    return key
 
 
 @pytest.fixture(scope='session')
-def bulk_data_16k(str_16k):
-    d = str_16k.encode('utf-8')
-    return b'$%d\r\n%s\r\n' % (len(d), d)
+def key_set(data_size):
+    return 'set:size:{:05}'.format(data_size)
 
 
 @pytest.fixture(scope='session')
-def bulk_data_32k(str_32k):
-    d = str_32k.encode('utf-8')
-    return b'$%d\r\n%s\r\n' % (len(d), d)
+def value_set(key_set, data_size, r):
+    val = data_value(data_size)
+    r.set(key_set, val)
+    return val
+
+
+@pytest.fixture(scope='session')
+def parse_bulk_str(data_size):
+    val = data_value(data_size).encode('utf-8')
+    return b'$%d\r\n%s\r\n' % (len(val), val)
+
+
+@pytest.fixture(scope='session')
+def parse_multi_bulk(data_size):
+    items = data_size
+    item = MAX_SIZE // items
+
+    val = data_value(item).encode('utf-8')
+    val = b'$%d\r\n%s\r\n' % (len(val), val)
+    return (b'*%d\r\n' % items) + (val * items)

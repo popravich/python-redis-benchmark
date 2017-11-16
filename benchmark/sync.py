@@ -1,38 +1,35 @@
 import pytest
 
 
+def execute(func, *args, **kwargs):
+    assert func(*args, **kwargs) is not None
+
+
 @pytest.mark.benchmark(group="redispy-ping")
 def benchmark_ping(benchmark, redispy):
-    benchmark(redispy.ping)
+    benchmark(execute, redispy.ping)
 
 
 @pytest.mark.benchmark(group="redispy-set")
-@pytest.mark.parametrize('str_size', [10, 2**8, 2**10, 2**11])
-def benchmark_set(benchmark, redispy, str_size):
-    value = 'S' * str_size
-    benchmark(redispy.set, 'str:key', value)
+def benchmark_set(benchmark, redispy, key_set, value_set):
+    benchmark(execute, redispy.set, key_set, value_set)
 
 
 @pytest.mark.benchmark(group="redispy-get")
-@pytest.mark.parametrize('str_size', [10, 2**8, 2**10, 2**11])
-def benchmark_get(benchmark, redispy, str_size):
-    value = 'S' * str_size
-    redispy.set('str:key', value)
-    benchmark(redispy.get, 'str:key')
+def benchmark_get(benchmark, redispy, key_get):
+    benchmark(execute, redispy.get, key_get)
 
 
-@pytest.mark.benchmark(group="redispy-lpush")
-@pytest.mark.parametrize('str_size', [10, 2**8, 2**10, 2**11])
-@pytest.mark.parametrize('data_size', [1, 10, 100, 1000])
-def benchmark_lpush(benchmark, redispy, str_size, data_size):
-    value = ['S' * str_size] * data_size
-    redispy.delete('lpush')
-    benchmark(redispy.lpush, 'lpush', value)
+@pytest.mark.benchmark(group='redispy-hgetall')
+def benchmark_hgetall(benchmark, redispy, key_hgetall):
+    benchmark(execute, redispy.hgetall, key_hgetall)
+
+
+@pytest.mark.benchmark(group="async-lrange")
+def benchmark_lrange(benchmark, redispy, key_lrange):
+    benchmark(execute, redispy.lrange, key_lrange, 0, -1)
 
 
 @pytest.mark.benchmark(group="redispy-zrange")
-def benchmark_zrange(benchmark, redispy):
-    for i in range(10):
-        redispy.zadd(
-            'zset:key', i, 'key:{}'.format(i))
-    benchmark(redispy.zrange, 'zset:key', 0, -1, withscores=True)
+def benchmark_zrange(benchmark, redispy, key_zrange):
+    benchmark(execute, redispy.zrange, key_zrange, 0, -1, withscores=True)

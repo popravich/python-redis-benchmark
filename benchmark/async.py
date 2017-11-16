@@ -1,5 +1,6 @@
 import pytest
 import asyncio_redis
+import aredis
 
 
 def execute(loop, coro_func, *args, **kwargs):
@@ -13,102 +14,39 @@ def benchmark_ping(benchmark, async_redis, loop):
 
 
 @pytest.mark.benchmark(group='async-set')
-def benchmark_set(benchmark, async_redis, loop):
+def benchmark_set(benchmark, async_redis, loop, key_set, value_set):
     """Test SET command with value of 1KiB size."""
-    key = 'str:key'
-    value = 'S' * 1024
-    benchmark(execute, loop, async_redis.set, key, value)
+    # XXX: aredis encodes data with latin-1 encoding,
+    #       so we convert str to bytes
+    if isinstance(async_redis, aredis.StrictRedis):
+        value_set = value_set.encode('utf-8')
+    benchmark(execute, loop, async_redis.set, key_set, value_set)
 
 
 @pytest.mark.benchmark(group="async-get")
-def benchmark_get__1k(benchmark, async_redis, loop, _aioredis, str_1k):
+def benchmark_get(benchmark, async_redis, loop, key_get):
     """Test get from Redis single 1KiB string value."""
-    loop.run_until_complete(_aioredis.set('str:key', str_1k))
-    benchmark(execute, loop, async_redis.get, 'str:key')
-
-
-@pytest.mark.benchmark(group="async-get")
-def benchmark_get__4k(benchmark, async_redis, loop, _aioredis, str_4k):
-    """Test get from Redis single 4KiB string value."""
-    loop.run_until_complete(_aioredis.set('str:key', str_4k))
-    benchmark(execute, loop, async_redis.get, 'str:key')
-
-
-@pytest.mark.benchmark(group="async-get")
-def benchmark_get_16k(benchmark, async_redis, loop, _aioredis, str_16k):
-    """Test get from Redis single 16KiB string value."""
-    loop.run_until_complete(_aioredis.set('str:key', str_16k))
-    benchmark(execute, loop, async_redis.get, 'str:key')
-
-
-@pytest.mark.benchmark(group="async-get")
-def benchmark_get_32k(benchmark, async_redis, loop, _aioredis, str_32k):
-    """Test get from Redis single 32KiB string value."""
-    loop.run_until_complete(_aioredis.set('str:key', str_32k))
-    benchmark(execute, loop, async_redis.get, 'str:key')
+    benchmark(execute, loop, async_redis.get, key_get)
 
 
 @pytest.mark.benchmark(group="async-hgetall")
-def benchmark_hgetall_10x1k(benchmark, async_redis, loop, _aioredis, str_1k):
+def benchmark_hgetall(benchmark, async_redis, loop, key_hgetall):
     """Test get from hash few big items."""
-    for i in range(10):
-        loop.run_until_complete(_aioredis.hset(
-            'dict:key', 'f:{:04}'.format(i), str_1k))
-    benchmark(execute, loop, async_redis.hgetall, 'dict:key')
+    benchmark(execute, loop, async_redis.hgetall, key_hgetall)
 
 
-@pytest.mark.benchmark(group="async-hgetall")
-def benchmark_hgetall_1kx10(benchmark, async_redis, loop, _aioredis, str_1k):
-    """Test get from hash many small items."""
-    for i in range(len(str_1k)):
-        loop.run_until_complete(_aioredis.hset(
-            'dict:key', 'f:{:04}'.format(i), 'HelloWorld'))
-    benchmark(execute, loop, async_redis.hgetall, 'dict:key')
+@pytest.mark.benchmark(group="async-lrange")
+def benchmark_lrange(benchmark, async_redis, loop, key_lrange):
+    benchmark(execute, loop, async_redis.lrange, key_lrange, 0, -1)
 
 
 @pytest.mark.benchmark(group="async-zrange")
-def benchmark_zrange__1k(benchmark, async_redis, loop, _aioredis, str_1k):
+def benchmark_zrange(benchmark, async_redis, loop, key_zrange):
     """Test get from sorted set 1k items."""
-    # TODO: configure data ranges
-    loop.run_until_complete(_aioredis.flushdb())
-    for i in range(len(str_1k)):
-        loop.run_until_complete(_aioredis.zadd(
-            'zset:key', i / 2, 'key:{:04}'.format(i)))
+    # NOTE: asyncio_redis implies `withscores` parameter
     if isinstance(async_redis, asyncio_redis.Pool):
         kw = {}
     else:
         kw = {'withscores': True}
     benchmark(execute, loop, async_redis.zrange,
-              'zset:key', 0, -1, **kw)
-
-
-@pytest.mark.benchmark(group="async-zrange")
-def benchmark_zrange__4k(benchmark, async_redis, loop, _aioredis, str_4k):
-    """Test get from sorted set 4k items."""
-    # TODO: configure data ranges
-    loop.run_until_complete(_aioredis.flushdb())
-    for i in range(len(str_4k)):
-        loop.run_until_complete(_aioredis.zadd(
-            'zset:key', i / 2, 'key:{:04}'.format(i)))
-    if isinstance(async_redis, asyncio_redis.Pool):
-        kw = {}
-    else:
-        kw = {'withscores': True}
-    benchmark(execute, loop, async_redis.zrange,
-              'zset:key', 0, -1, **kw)
-
-
-@pytest.mark.benchmark(group="async-zrange")
-def benchmark_zrange_16k(benchmark, async_redis, loop, _aioredis, str_16k):
-    """Test get from sorted set 16k items."""
-    # TODO: configure data ranges
-    loop.run_until_complete(_aioredis.flushdb())
-    for i in range(len(str_16k)):
-        loop.run_until_complete(_aioredis.zadd(
-            'zset:key', i / 2, 'key:{:04}'.format(i)))
-    if isinstance(async_redis, asyncio_redis.Pool):
-        kw = {}
-    else:
-        kw = {'withscores': True}
-    benchmark(execute, loop, async_redis.zrange,
-              'zset:key', 0, -1, **kw)
+              key_zrange, 0, -1, **kw)

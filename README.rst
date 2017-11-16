@@ -1,17 +1,17 @@
 Python Redis clients benchmarks
--------------------------------
+===============================
 
 Run, either::
 
     $ pip install -r requirements.txt
     $ py.test
 
-or::
+or, alternatively, run in container::
 
     $ vagga run
 
 Tested libraries
-~~~~~~~~~~~~~~~~
+----------------
 
 * `aioredis`_ — async mode (hiredis/python parser), parsers implementation;
 
@@ -19,9 +19,9 @@ Tested libraries
 
 * `asyncio-redis`_ — async mode (hiredis/python parser);
 
-* `hiredis`_ — parser;
+* `redis-py`_ — sync mode (hiredis/python parser), parsers implementation;
 
-* `redis-py`_ — parsers implementation;
+* `hiredis`_ — parser;
 
 
 .. _aioredis: https://github.com/aio-libs/aioredis
@@ -30,10 +30,41 @@ Tested libraries
 .. _hiredis: https://github.com/redis/hiredis-py
 .. _redis-py: https://github.com/andymccurdy/redis-py
 
-Results
-~~~~~~~
+Tests and Results
+-----------------
+
+Async ``ping``
+
+Async ``get``
+
+Async ``set``
+
+Async ``hgetall``
+
+Async ``zrange``
+
+Async ``lrange``
+
+Sync ``ping``
+
+Sync ``get``
+
+Sync ``set``
+
+Sync ``hgetall``
+
+Sync ``zrange``
+
+Sync ``lrange``
+
+Parse bulk string reply
+
+Parse multi-bulk reply
+
+Parse error reply
 
 Test environment
+~~~~~~~~~~~~~~~~
 
 :CPU: Intel(R) Core(TM) i5-4460  CPU @ 3.20GHz
 
