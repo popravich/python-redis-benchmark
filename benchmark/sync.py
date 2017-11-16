@@ -25,7 +25,7 @@ def benchmark_hgetall(benchmark, redispy, key_hgetall):
     benchmark(execute, redispy.hgetall, key_hgetall)
 
 
-@pytest.mark.benchmark(group="async-lrange")
+@pytest.mark.benchmark(group="redispy-lrange")
 def benchmark_lrange(benchmark, redispy, key_lrange):
     benchmark(execute, redispy.lrange, key_lrange, 0, -1)
 
