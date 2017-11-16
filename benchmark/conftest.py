@@ -23,8 +23,12 @@ from asyncio_redis.protocol import RedisProtocol, HiRedisProtocol
 
 
 @pytest.fixture(scope='session', params=[
-    pytest.param(HiredisParser, marks=pytest.mark.hiredis, id='redis-py[hi]'),
-    pytest.param(PythonParser, marks=pytest.mark.pyreader, id='redis-py[py]'),
+    pytest.param(HiredisParser,
+                 marks=[pytest.mark.hiredis, pytest.mark.redispy],
+                 id='redis-py[hi]'),
+    pytest.param(PythonParser,
+                 marks=[pytest.mark.pyreader, pytest.mark.redispy],
+                 id='redis-py[py]'),
 ])
 def redispy(request):
     pool = redis.ConnectionPool(parser_class=request.param)
@@ -66,27 +70,30 @@ class HiredisParserReader(PythonParserReader):
 
 
 @pytest.fixture(params=[
-    pytest.param(HiReader(), marks=pytest.mark.hiredis,
-                 id='hiredis'),
-    pytest.param(HiReader(encoding='utf-8'), marks=pytest.mark.hiredis,
-                 id='hiredis(utf-8)'),
-    pytest.param(PyReader(), marks=pytest.mark.pyreader,
-                 id='aioredis-python'),
-    pytest.param(PyReader(encoding='utf-8'), marks=pytest.mark.pyreader,
-                 id='aioredis-python(utf-8)'),
-    pytest.param(PythonParserReader(), marks=pytest.mark.pyreader,
-                 id='redispy-python'),
-    pytest.param(PythonParserReader(encoding='utf-8'),
-                 marks=pytest.mark.pyreader,
-                 id='redispy-python(utf-8)'),
-    pytest.param(HiredisParserReader(), marks=pytest.mark.hiredis,
-                 id='redispy-hiredis'),
-    pytest.param(HiredisParserReader(encoding='utf-8'),
-                 marks=pytest.mark.hiredis,
-                 id='redispy-hiredis(utf-8)'),
+    pytest.param(None, id='bytes'),
+    pytest.param('utf-8', id='utf-8'),
 ])
-def reader(request):
+def reader_encoding(request):
     return request.param
+
+
+@pytest.fixture(params=[
+    pytest.param(HiReader, marks=pytest.mark.hiredis,
+                 id='hiredis'),
+    pytest.param(PyReader,
+                 marks=[pytest.mark.pyreader, pytest.mark.aioredis],
+                 id='aioredis[py]'),
+    pytest.param(PythonParserReader,
+                 marks=[pytest.mark.pyreader, pytest.mark.redispy],
+                 id='redispy[py]'),
+    pytest.param(HiredisParserReader,
+                 marks=[pytest.mark.hiredis, pytest.mark.redispy],
+                 id='redispy[hi]'),
+])
+def reader(request, reader_encoding):
+    if reader_encoding:
+        return request.param(encoding=reader_encoding)
+    return request.param()
 
 
 async def aredis_start():
@@ -149,22 +156,22 @@ async def asyncio_redis_stop(pool):
 
 @pytest.fixture(params=[
     pytest.param((aredis_start, None),
-                 marks=pytest.mark.hiredis,
+                 marks=[pytest.mark.hiredis, pytest.mark.aredis],
                  id='aredis[hi]-------'),
     pytest.param((aredis_py_start, None),
-                 marks=pytest.mark.pyreader,
+                 marks=[pytest.mark.pyreader, pytest.mark.aredis],
                  id='aredis[py]-------'),
     pytest.param((aioredis_start, aioredis_stop),
-                 marks=pytest.mark.hiredis,
+                 marks=[pytest.mark.hiredis, pytest.mark.aioredis],
                  id='aioredis[hi]-----'),
     pytest.param((aioredis_py_start, aioredis_stop),
-                 marks=pytest.mark.pyreader,
+                 marks=[pytest.mark.pyreader, pytest.mark.aioredis],
                  id='aioredis[py]-----'),
     pytest.param((asyncio_redis_start, asyncio_redis_stop),
-                 marks=pytest.mark.hiredis,
+                 marks=[pytest.mark.hiredis, pytest.mark.asyncio_redis],
                  id='asyncio_redis[hi]'),
     pytest.param((asyncio_redis_py_start, asyncio_redis_stop),
-                 marks=pytest.mark.pyreader,
+                 marks=[pytest.mark.pyreader, pytest.mark.asyncio_redis],
                  id='asyncio_redis[py]'),
 ])
 def async_redis(loop, request):

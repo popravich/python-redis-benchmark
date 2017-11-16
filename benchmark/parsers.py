@@ -29,7 +29,7 @@ def benchmark_parser_simple_string(benchmark, reader):
 @pytest.mark.simple_error
 @pytest.mark.benchmark(group='simple-error')
 def benchmark_parser_simple_error(benchmark, reader):
-    benchmark(feed_and_gets, reader, b'-Error\r\n')
+    benchmark(feed_and_gets, reader, b'-ERR invalid password\r\n')
 
 
 @pytest.mark.bulk_string_1k
