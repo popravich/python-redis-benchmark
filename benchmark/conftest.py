@@ -22,6 +22,13 @@ from aioredis import parser as aioredis_parser
 from asyncio_redis.protocol import RedisProtocol, HiRedisProtocol
 
 
+def pytest_addoption(parser):
+    parser.addoption('--redis-host', default='localhost',
+                     help="Redis server host")
+    parser.addoption('--redis-port', default=6379, type=int,
+                     help="Redis server port")
+
+
 @pytest.fixture(scope='session', params=[
     pytest.param(HiredisParser,
                  marks=[pytest.mark.hiredis, pytest.mark.redispy],
@@ -31,8 +38,11 @@ from asyncio_redis.protocol import RedisProtocol, HiRedisProtocol
                  id='redis-py[py]'),
 ])
 def redispy(request):
-    pool = redis.ConnectionPool(parser_class=request.param)
-    r = redis.StrictRedis(connection_pool=pool)
+    host = request.config.getoption('--redis-host')
+    port = request.config.getoption('--redis-port')
+    pool = redis.ConnectionPool(host=host, port=port,
+                                parser_class=request.param)
+    r = redis.StrictRedis(host=host, port=port, connection_pool=pool)
     return r
 
 
@@ -96,34 +106,34 @@ def reader(request, reader_encoding):
     return request.param()
 
 
-async def aredis_start():
+async def aredis_start(host, port):
     client = aredis.StrictRedis.from_url(
-        'redis://localhost:6379',
+        'redis://{}:{}'.format(host, port),
         max_connections=2)
     await client.ping()
     return client
 
 
-async def aredis_py_start():
+async def aredis_py_start(host, port):
     client = aredis.StrictRedis.from_url(
-        'redis://localhost:6379',
+        'redis://{}:{}'.format(host, port),
         max_connections=2,
         parser_class=aredis_conn.PythonParser)
     await client.ping()
     return client
 
 
-async def aioredis_start():
+async def aioredis_start(host, port):
     client = await aioredis.create_redis_pool(
-        ('localhost', 6379),
+        (host, port),
         maxsize=2)
     await client.ping()
     return client
 
 
-async def aioredis_py_start():
+async def aioredis_py_start(host, port):
     client = await aioredis.create_redis_pool(
-        ('localhost', 6379),
+        (host, port),
         maxsize=2, parser=aioredis_parser.PyReader)
     await client.ping()
     return client
@@ -134,17 +144,17 @@ async def aioredis_stop(client):
     await client.wait_closed()
 
 
-async def asyncio_redis_start():
+async def asyncio_redis_start(host, port):
     pool = await asyncio_redis.Pool.create(
-        'localhost', 6379, poolsize=2,
+        host, port, poolsize=2,
         protocol_class=HiRedisProtocol)
     await pool.ping()
     return pool
 
 
-async def asyncio_redis_py_start():
+async def asyncio_redis_py_start(host, port):
     pool = await asyncio_redis.Pool.create(
-        'localhost', 6379, poolsize=2,
+        host, port, poolsize=2,
         protocol_class=RedisProtocol)
     await pool.ping()
     return pool
@@ -176,7 +186,9 @@ async def asyncio_redis_stop(pool):
 ])
 def async_redis(loop, request):
     start, stop = request.param
-    client = loop.run_until_complete(start())
+    host = request.config.getoption('--redis-host')
+    port = request.config.getoption('--redis-port')
+    client = loop.run_until_complete(start(host, port))
     yield client
     if stop:
         loop.run_until_complete(stop(client))
@@ -223,8 +235,10 @@ MAX_SIZE = 2**15
 
 
 @pytest.fixture(scope='session')
-def r():
-    return redis.StrictRedis()
+def r(request):
+    host = request.config.getoption('--redis-host')
+    port = request.config.getoption('--redis-port')
+    return redis.StrictRedis(host=host, port=port)
 
 
 @pytest.fixture(
