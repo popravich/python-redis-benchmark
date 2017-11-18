@@ -268,17 +268,21 @@ def key_hgetall(data_size, r):
     size = MAX_SIZE // items
     key = 'dict:size:{:05}x{:05}'.format(items, size)
     val = data_value(size)
+    p = r.pipeline()
     for i in range(items):
-        r.hset(key, 'f:{:05}'.format(i), val)
+        p.hset(key, 'f:{:05}'.format(i), val)
+    p.execute()
     return key
 
 
 @pytest.fixture(scope='session')
 def key_zrange(data_size, r):
     key = 'zset:size:{:05}'.format(data_size)
+    p = r.pipeline()
     for i in range(data_size):
         val = 'val:{:05}'.format(i)
-        r.zadd(key, i / 2, val)
+        p.zadd(key, i / 2, val)
+    p.execute()
     return key
 
 
@@ -287,8 +291,10 @@ def key_lrange(data_size, r):
     size = MAX_SIZE // data_size
     key = 'list:size:{:05}x{:05}'.format(data_size, size)
     val = data_value(size)
+    p = r.pipeline()
     for i in range(data_size):
-        r.lpush(key, val)
+        p.lpush(key, val)
+    p.execute()
     return key
 
 
